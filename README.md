@@ -5,9 +5,9 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/virgiliojr94/book-to-skill/releases"><img src="https://img.shields.io/github/v/release/virgiliojr94/book-to-skill?style=for-the-badge&color=blueviolet" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/Claude_Code-Skill-blueviolet?style=for-the-badge" alt="Claude Code Skill">
   <img src="https://img.shields.io/badge/PDF%20%E2%80%A2%20EPUB%20%E2%80%A2%20DOCX%20%E2%80%A2%20MD%20%E2%80%A2%20HTML%20%E2%80%A2%20RTF%20%E2%80%A2%20MOBI-supported-green?style=for-the-badge" alt="Formats supported">
-  <img src="https://img.shields.io/badge/effort-high-orange?style=for-the-badge" alt="Effort: high">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License">
 </p>
 
@@ -22,7 +22,10 @@
   <a href="#-how-it-works">How it works</a> ·
   <a href="#-the-discovery-loop-tax">Discovery Loop Tax</a> ·
   <a href="#-faq">FAQ</a> ·
-  <a href="#-install">Install</a>
+  <a href="#-install">Install</a> ·
+  <a href="CHANGELOG.md">Changelog</a> ·
+  <a href="docs/PERFORMANCE.md">Performance</a> ·
+  <a href="docs/ARCHITECTURE.md">Architecture</a>
 </p>
 
 ---
@@ -344,18 +347,25 @@ Then in any Claude Code session:
 
 ```
 book-to-skill/
-├── SKILL.md              # Skill definition + step-by-step instructions
+├── SKILL.md              # Skill definition + step-by-step instructions (the generator spec)
 ├── scripts/
 │   ├── extract.py        # Thin entrypoint wrapper
 │   └── extractor/        # Modular extraction package
-│       ├── __init__.py
 │       ├── config.py     # Extensions, paths, dependency constants
-│       ├── dependencies.py
+│       ├── dependencies.py  # optional-dep probing + --check
 │       ├── exceptions.py # ExtractionError (per-source failures, batch-safe)
-│       ├── utils.py      # CLI parsing, multi-source resolution, runner
+│       ├── utils.py      # CLI parsing, multi-source resolution, chapter detection, runner
 │       └── parsers/      # Format-specific parsers (pdf, epub, docx, html, rtf, calibre, text)
-├── tests/
-│   └── test_extractor.py # Test suite (multi-source, batch resilience, EPUB, parsers)
+├── tools/
+│   ├── discovery_tax.py  # measures token cost vs context-dump / discovery loop
+│   └── validate_skill.py # checks a generated SKILL.md against Claude Code rules
+├── tests/                # pytest suite (extraction, detection, discovery tax)
+├── docs/
+│   ├── PERFORMANCE.md    # measured benchmarks, discovery tax, cost
+│   └── ARCHITECTURE.md   # pipeline + component map
+├── CHANGELOG.md          # release history (semver)
+├── CONTRIBUTING.md       # dev setup, PR conventions, release process
+├── SECURITY.md           # vulnerability reporting
 └── README.md             # This file
 ```
 
