@@ -51,7 +51,7 @@ Running `/book-to-skill your-book.pdf` (or a folder, glob, or list of files) cre
 
 | File | Purpose | Size |
 |------|---------|------|
-| `SKILL.md` | Core mental models + chapter index | ~4,000 tokens |
+| `SKILL.md` | Core mental models, chapter index, and extracted source code/companion links | ~4,000 tokens |
 | `chapters/ch01-*.md` … | One file per chapter, loaded on-demand | ~1,000 tokens each |
 | `glossary.md` | Every key term, alphabetically sorted with chapter refs | ~1,500 tokens |
 | `patterns.md` | All techniques, algorithms, and design patterns | ~2,000 tokens |

@@ -350,6 +350,7 @@ Create `$SKILLS_HOME/<skill_name>/chapters/ch<NN>-<slug>.md` using the structure
 
 ## Core Idea
 <1–2 sentences: the single most important thing this chapter teaches>
+<If this chapter references companion code or external assets, include the link here>
 
 ## Frameworks Introduced
 - **<Framework Name>**: <exact formulation — preserve the author's naming>
@@ -448,8 +449,10 @@ argument-hint: [topic, framework name, or chapter number]
 
 # <Full Title>
 **Author**: <Author(s)> | **Pages**: ~<N> | **Chapters**: <N> | **Generated**: <YYYY-MM-DD>
+**Source Code / Links**: <Extracted GitHub/GitLab links or "None">
 
 ## How to Use This Skill
+
 
 - **Without arguments** — load core frameworks for reference
 - **With a topic** — ask about `replication`, `pricing`, or another indexed topic; I find and read the relevant chapter
@@ -607,3 +610,4 @@ Once the files are successfully written and merged, skip to **Step 10** to perfo
 6. **Chapter files are on-demand** — they don't count against skill budget until loaded
 7. **Never copy raw book text** — always synthesize, summarize, extract signal
 8. **Topic index is critical** — it's how the agent navigates to the right chapter file
+9. **Extract Companion Links** — Actively search extracted text for external repositories (github.com, etc.) and include them in SKILL.md and relevant chapters.
