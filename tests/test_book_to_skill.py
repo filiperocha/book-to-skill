@@ -34,6 +34,7 @@ from book_to_skill.utils import (
     main,
 )
 from book_to_skill.config import SUPPORTED_EXTENSIONS
+from book_to_skill.parsers import pdf as pdf_parser
 from book_to_skill.parsers.text import read_text_file
 from book_to_skill.parsers.docx import extract_docx_with_zipfile
 from book_to_skill.parsers.rtf import strip_rtf_fallback
@@ -546,6 +547,50 @@ class TestDetectStructure:
         text = "Chapter 1 Introduction\nSome text.\nChapter 2 Details\nMore text."
         result = detect_structure(text)
         assert result["chapters_detected"] == 2
+
+    def test_detects_chapter_word_with_roman_numeral(self):
+        """`Chapter I.` — the combination of the word plus a Roman numeral.
+
+        Regression: each half worked alone (`Chapter 1` via _EXPLICIT_CHAPTER,
+        `I. Loomings` via _ROMAN_HEAD) but the combination matched neither, so
+        books using it fell back to no segmentation. Project Gutenberg's
+        `The Art of War` (#132) is one: 13 such headings, 0 detected, while two
+        footnote cross-references (`ch. 71.]`) were picked up instead.
+        """
+        text = "\n".join(
+            "Chapter %s. Section\nBody text here." % r
+            for r in ("I", "II", "III", "IV", "V")
+        )
+        assert detect_structure(text)["chapters_detected"] == 5
+
+    def test_detects_thai_chapters(self):
+        """Thai headings: `บทที่ N` / `ตอนที่ N`, with Thai or Arabic digits."""
+        text = (
+            "บทที่ ๑ ว่าด้วยการวางแผน\nเนื้อหา\n"
+            "บทที่ ๒ ว่าด้วยการรบ\nเนื้อหา\n"
+            "บทที่ 3 ว่าด้วยกลยุทธ์\nเนื้อหา"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_thai_episode_headings_and_markdown_prefix(self):
+        text = "## ตอนที่ ๘๖ เรื่องหนึ่ง\nเนื้อหา\n## ตอนที่ ๘๗ เรื่องสอง\nเนื้อหา"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_thai_prose_is_not_a_chapter_heading(self):
+        """`บทความ` (article) and `ตอนนี้` (now) start with the chapter words
+        but are ordinary prose — they must not be treated as headings."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("บทความนี้ยาวมากและมีรายละเอียดเยอะ") is None
+        assert _chapter_number("ตอนนี้เรามาดูกันว่าเกิดอะไรขึ้น") is None
+
+    def test_roman_footnote_reference_is_not_a_chapter(self):
+        """Scholarly cross-references must stay rejected after the Roman change."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("V. § 19, note.") is None
+        assert _chapter_number("VI. § 21:\u2014") is None
+        assert _chapter_number("Chapter 6 explores the topic in depth") is None
 
     def test_detects_toc(self):
         text = "Table of Contents\n1. Intro\n2. Body"
@@ -1284,3 +1329,26 @@ class TestTextEncodingDetection:
     def test_empty_file_returns_empty_string(self, tmp_path):
         # An empty file decodes to "" (not None, which is reserved for read errors).
         assert read_text_file(self._write(tmp_path, b"")) == ""
+
+
+class TestPdftotextEncoding:
+    """pdftotext output (UTF-8) is decoded as UTF-8, not the locale encoding."""
+
+    def test_pdftotext_decodes_as_utf8(self, monkeypatch):
+        captured = {}
+
+        class _Result:
+            returncode = 0
+            stdout = "Café — naïve"
+
+        monkeypatch.setattr(pdf_parser.shutil, "which", lambda name: "/usr/bin/pdftotext")
+
+        def fake_run(cmd, **kwargs):
+            captured.update(kwargs)
+            return _Result()
+
+        monkeypatch.setattr(pdf_parser.subprocess, "run", fake_run)
+
+        assert pdf_parser.extract_with_pdftotext("x.pdf") == "Café — naïve"
+        assert captured.get("encoding") == "utf-8"
+        assert captured.get("errors") == "replace"
