@@ -18,10 +18,7 @@
 
 <p align="center">
   <a href="https://trendshift.io/repositories/27038?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-27038" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/27038" alt="virgiliojr94%2Fbook-to-skill | Trendshift" width="250" height="55"/></a>
-</p>
-
-<p align="center">
-  🏆 <strong>#10 Python Repository of the Day</strong> and <strong>#25 Repository of the Day</strong> on Trendshift (May 23, 2026)
+  <a href="https://trendshift.io/repositories/27038?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-27038" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/27038/daily?language=Python" alt="virgiliojr94%2Fbook-to-skill | Trendshift (daily, Python)" width="250" height="55"/></a>
 </p>
 
 <p align="center">
@@ -280,10 +277,11 @@ python3 tools/discovery_tax.py --full-text /tmp/book_skill_work/full_text.txt --
 > **Honest caveats:** (1) the discovery figures are a one-time cost and a *model*
 > using the book's real ToC/chapter sizes — a well-tuned agent lands nearer the best
 > case; the context-dump cost, by contrast, recurs on **every** turn. (2) The tool
-> needs explicit `Chapter N` / `Capítulo N` headings to segment a book; titles-only
-> or roman-numeral books (and EPUBs extracted without `ebooklib`) won't segment
-> cleanly. book-to-skill wins when you return to the knowledge repeatedly; for a
-> single one-off read, a plain PDF agent is fine.
+> needs recognizable chapter headings to segment a book — it detects Arabic,
+> Roman (`Chapter I` / line-initial `I.`), CJK, Korean (`제N장`), Thai, and
+> several European forms, but a titles-only book (or an EPUB extracted without
+> `ebooklib`) may not segment cleanly. book-to-skill wins when you return to the
+> knowledge repeatedly; for a single one-off read, a plain PDF agent is fine.
 
 ---
 

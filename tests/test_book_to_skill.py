@@ -366,6 +366,49 @@ class TestBatchResilience:
         meta = json.loads(out_meta.read_text(encoding="utf-8"))
         assert meta["total_sources"] == 1
 
+    @pytest.mark.parametrize(
+        "reported_source",
+        ["/x/sample.md", "/deep/" + ("nested/" * 12) + "sample.md"],
+    )
+    def test_source_banner_does_not_change_structural_chapter_count(
+        self, tmp_path, monkeypatch, reported_source
+    ):
+        """The generated SOURCE banner must not become a phantom setext heading."""
+        source = _make_md_file(
+            tmp_path / "sample.md",
+            "# The Pragmatic Widget\n\n"
+            "## Foundations\n\nBody.\n\n"
+            "## Design Rules\n\nBody.\n\n"
+            "## Trade-offs\n\nBody.\n\n"
+            "## Operating Model\n\nBody.\n\n"
+            "## Closing\n\nBody.\n",
+        )
+        out_dir = tmp_path / "output"
+        out_text = out_dir / "full_text.txt"
+        out_meta = out_dir / "metadata.json"
+        real_extract = extract_single_file
+
+        def extract_with_reported_source(*args, **kwargs):
+            result = real_extract(*args, **kwargs)
+            result["source_file"] = reported_source
+            return result
+
+        monkeypatch.setattr("sys.argv", ["extract.py", str(source), "--install-missing", "no"])
+        monkeypatch.setattr("book_to_skill.utils.OUTPUT_DIR", out_dir)
+        monkeypatch.setattr("book_to_skill.utils.OUTPUT_TEXT", out_text)
+        monkeypatch.setattr("book_to_skill.utils.OUTPUT_META", out_meta)
+        monkeypatch.setattr("book_to_skill.utils.prepare_dependencies", lambda *a: None)
+        monkeypatch.setattr(
+            "book_to_skill.utils.extract_single_file", extract_with_reported_source
+        )
+
+        main()
+
+        metadata = json.loads(out_meta.read_text(encoding="utf-8"))
+        assert metadata["sources"][0]["chapters_detected"] == 5
+        assert metadata["chapters_detected"] == 5
+        assert "SOURCE: sample.md" in out_text.read_text(encoding="utf-8")
+
     def test_extraction_error_is_not_system_exit(self):
         """ExtractionError should NOT be a subclass of SystemExit."""
         assert not issubclass(ExtractionError, SystemExit)
@@ -583,6 +626,52 @@ class TestDetectStructure:
 
         assert _chapter_number("บทความนี้ยาวมากและมีรายละเอียดเยอะ") is None
         assert _chapter_number("ตอนนี้เรามาดูกันว่าเกิดอะไรขึ้น") is None
+
+    # ── Korean chapter headings ────────────────────────────────────────────
+
+    def test_korean_je_n_jang(self):
+        """Korean headings: `제N장` with Arabic digits."""
+        text = (
+            "제1장 총칙\n내용\n"
+            "제2장 근로시간\n내용\n"
+            "제3장 휴식\n내용"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_korean_markdown_prefix(self):
+        """`## 제N장` with Markdown heading prefix."""
+        text = "## 제1장 서론\n내용\n## 제2장 본론\n내용"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_korean_inserted_chapter_suffix(self):
+        """`제6장의2` — inserted-chapter suffix used in Korean statutes."""
+        text = "제6장의2 직장 내 괴롭힘의 금지\n내용\n제7장 보칙\n내용"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_korean_article_is_not_chapter(self):
+        """`제N조` (article) is not a chapter classifier — deliberately excluded."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("제56조 (연장·야간 및 휴일 근로)") is None
+
+    def test_korean_prose_cross_reference_not_chapter(self):
+        """Prose cross-references with particles are not headings."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("이 장과 제5장에서 정한 근로시간…") is None
+        assert _chapter_number("제5장에서 정한 근로시간에 관한 규정은…") is None
+        assert _chapter_number("제2장의 규정에도 불구하고…") is None
+
+    def test_korean_dedups_toc_and_body(self):
+        """ToC entry and body heading with same number count once."""
+        text = "제1장 총칙\n제2장 근로시간\n## 제1장\n내용\n## 제2장\n내용"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_korean_other_classifiers(self):
+        """`제N편` (part), `제N절` (section), `제N관` (subsection) are also detected."""
+        text = "제1편 총칙\n내용\n제2장 정의\n내용\n제3절 통칙\n내용"
+        assert detect_structure(text)["chapters_detected"] == 3
+
 
     def test_roman_footnote_reference_is_not_a_chapter(self):
         """Scholarly cross-references must stay rejected after the Roman change."""
@@ -1352,3 +1441,44 @@ class TestPdftotextEncoding:
         assert pdf_parser.extract_with_pdftotext("x.pdf") == "Café — naïve"
         assert captured.get("encoding") == "utf-8"
         assert captured.get("errors") == "replace"
+
+
+class TestPdftotextCleanup:
+    """clean_pdftotext strips repeated headers/footers/page numbers and dehyphenates."""
+
+    def _pages(self, *pages):
+        return "\f".join(pages)
+
+    def test_repeated_header_and_edge_page_numbers_removed(self):
+        raw = self._pages(
+            *(f"BOOK TITLE\nReal content on page {n}.\n{n}" for n in (1, 2, 3))
+        )
+        out = pdf_parser.clean_pdftotext(raw)
+        assert "BOOK TITLE" not in out
+        assert not any(ln.strip() in {"1", "2", "3"} for ln in out.splitlines())
+        assert "Real content on page 1." in out
+
+    def test_hyphenated_wrap_is_rejoined(self):
+        raw = self._pages(*(f"H\nabout informa-\ntion here\n{n}" for n in (1, 2, 3)))
+        out = pdf_parser.clean_pdftotext(raw)
+        assert "information" in out
+        assert "informa-" not in out
+
+    def test_token_count_drops(self):
+        raw = self._pages(*(f"RUNNING HEAD\nbody text page {n}\n{n}" for n in (1, 2, 3)))
+        out = pdf_parser.clean_pdftotext(raw)
+        assert len(out.split()) < len(raw.split())
+
+    def test_mid_page_bare_number_is_kept(self):
+        # A bare number that is NOT at a page edge must survive.
+        raw = self._pages(*(f"HDR\nthe answer is 42\ntrailing\n{n}" for n in (1, 2, 3)))
+        out = pdf_parser.clean_pdftotext(raw)
+        assert "42" in out
+        assert "HDR" not in out
+
+    def test_single_page_keeps_content(self):
+        # < 3 pages: no header/footer removal, only dehyphenation.
+        out = pdf_parser.clean_pdftotext("Title\nword-\nwrap\n1")
+        assert "wordwrap" in out
+        assert "Title" in out
+        assert "1" in out

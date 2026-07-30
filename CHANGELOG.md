@@ -5,9 +5,13 @@ All notable changes to **book-to-skill** are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.3.0] - 2026-07-30
 
 ### Added
+- **Korean chapter headings** — `제N장` (and `제N절`/`제N관`/`제N편`, plus the statutory
+  inserted-article `의N` form) are now detected, with the `제` prefix required so the
+  everyday counter `장` (e.g. `사진 10장` = "10 photos") never false-matches. Validated
+  against a ~3,000-statute corpus (precision 0.999 / recall 1.000) (#82).
 - **Thai chapter headings** — `บทที่ N`, `ตอนที่ N` and `ภาคที่ N` are now detected as
   chapter boundaries, with Thai numerals (๐–๙) as well as Arabic digits. Thai-language
   books previously had no heading detection at all and fell back to length-based
@@ -31,7 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before a generated skill is accepted or published. Findings identify only the
   rule and file/line location and never echo attacker-controlled text (#73).
 - **Invisible-Unicode extraction hardening** — every parser result now removes
-  zero-width U+200B/U+200C/U+200D/U+FEFF characters and the Unicode tag block
+  zero-width U+200B/U+200C/U+200D/U+2060/U+FEFF characters and the Unicode tag block
   U+E0000-U+E007F before metrics or `full_text.txt` are produced, reports the
   removal count, and rejects sources containing no visible content after the scrub.
 - **DOCX XXE / Billion Laughs hardening** — the DOCX extractor now scans the
@@ -49,8 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The `pdf` extra now installs `pypdf` instead of the deprecated `PyPDF2`**
   (`pip install book-to-skill[pdf]`). `pypdf` is the maintained successor;
   `PyPDF2` is end-of-life and no longer receives security fixes (#54).
+- PDF text from `pdftotext` is now cleaned before use: hyphenated line-wraps are
+  rejoined (`informa-\ntion` → `information`) and repeated running
+  headers/footers and per-page page numbers are stripped. Fewer tokens and
+  cleaner input for chapter detection; conservative (edges only, ≥3 pages, so
+  mid-page content is never removed).
 
 ### Fixed
+- Consolidated chapter detection now analyzes extracted source text without the generated
+  `SOURCE:` boundary banners, preventing those banners from becoming phantom setext headings
+  and collapsing `chapters_detected` to 2 for short source paths (#81).
 - **`Chapter I.` — a chapter word followed by a Roman numeral — is now detected.** It
   matched neither existing pattern (`_EXPLICIT_CHAPTER` required Arabic digits after the
   chapter word; `_ROMAN_HEAD` required the numeral to start the line), so books using
@@ -197,6 +209,7 @@ validated on real books.
 - Technical PDFs extracted in text mode may lose heading structure; use technical
   mode (Docling) to preserve tables, code, and headings.
 
+[1.3.0]: https://github.com/virgiliojr94/book-to-skill/releases/tag/v1.3.0
 [1.2.0]: https://github.com/virgiliojr94/book-to-skill/releases/tag/v1.2.0
 [1.1.0]: https://github.com/virgiliojr94/book-to-skill/releases/tag/v1.1.0
 [1.0.0]: https://github.com/virgiliojr94/book-to-skill/releases/tag/v1.0.0
